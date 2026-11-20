@@ -1,0 +1,14 @@
+# SENTINEL - training / inference / tests
+# Install CUDA PyTorch FIRST from the PyTorch index (see README), then:
+#   pip install -r requirements.txt
+torch>=2.4
+transformers==4.57.6
+peft==0.17.1
+accelerate>=1.0
+bitsandbytes>=0.45      # QLoRA (4-bit); Linux + Windows CUDA wheels
+safetensors
+scikit-learn>=1.3
+numpy
+requests>=2.31
+python-dotenv>=1.0
+pytest>=8

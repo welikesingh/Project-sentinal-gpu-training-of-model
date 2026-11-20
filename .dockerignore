@@ -1,0 +1,12 @@
+.git/
+.venv/
+.env
+data/
+output/
+**/__pycache__/
+**/.pytest_cache/
+*.docx
+.euron/
+ui/
+xgboost_benchmark/
+tests/

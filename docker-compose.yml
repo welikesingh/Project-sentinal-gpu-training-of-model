@@ -1,0 +1,56 @@
+# Each service builds from its own folder/Dockerfile and can be deployed on its own.
+#   docker compose up -d --build xgboost ui          # your machine: XGBoost API (8001) + dashboard (8501)
+#   docker compose --profile gpu up -d --build llm   # GPU host (Hyperstack): LLM API (8000)
+# Values come from .env in this folder (XGB_API_KEY, LLM_URL, LLM_API_KEY, SENTINEL_API_KEY, LLM_RUN ...).
+services:
+  xgboost:
+    build: ./xgboost_benchmark
+    image: sentinel-xgb
+    ports: ["8001:8001"]
+    env_file:
+      - path: ./xgboost_benchmark/.env      # XGB_API_KEY (created by run_service.*)
+        required: false
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+      - SUPABASE_BUCKET=${SUPABASE_BUCKET:-sentinel-data}
+    volumes:
+      - ./data/sft:/data/sft
+    restart: unless-stopped
+
+  ui:
+    build: ./ui
+    image: sentinel-ui
+    ports: ["8501:8501"]
+    env_file:
+      - path: ./xgboost_benchmark/.env      # same XGB_API_KEY as the xgboost service
+        required: false
+    environment:
+      - LORA_URL=${LORA_URL:-${LLM_URL:-http://host.docker.internal:8000}}
+      - QLORA_URL=${QLORA_URL:-http://host.docker.internal:8002}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - XGB_URL=${XGB_URL:-http://xgboost:8001}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    restart: unless-stopped
+
+  llm:
+    profiles: ["gpu"]
+    build:
+      context: .
+      dockerfile: Dockerfile.llm
+    image: sentinel-llm
+    ports: ["8000:8000"]
+    environment:
+      - SENTINEL_API_KEY=${SENTINEL_API_KEY:-}
+    volumes:
+      - ./output:/app/output
+      - ${HOME:-~}/.cache/huggingface:/root/.cache/huggingface
+    command: ["--run", "output/${LLM_RUN:-latest}", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
